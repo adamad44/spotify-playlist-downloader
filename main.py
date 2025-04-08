@@ -57,7 +57,7 @@ def main():
             linksToDownload.append(link)
 
 
-     
+
     
     if not savePath:
         savePath = os.getcwd()
