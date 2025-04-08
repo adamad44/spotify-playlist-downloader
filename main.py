@@ -1,8 +1,10 @@
 from utils import *
 import os
 
+# Function to start the main download process
 def start_main_download_process(linksToDownload, savePath):
     all_tracks = []
+    # Loop through the links
     for link in linksToDownload:
         playlist_id = extract_playlist_id(link)
         playlist_type = get_type(link)
@@ -18,6 +20,7 @@ def start_main_download_process(linksToDownload, savePath):
     totalTracks = len(all_tracks)
     print(f"downloading {totalTracks} tracks")
 
+    # Loop through all tracks
     for i, track_info in enumerate(all_tracks):
         track = track_info['track']
         playlist_id = track_info['playlist_id']
@@ -40,11 +43,12 @@ def start_main_download_process(linksToDownload, savePath):
                 pass
         print(f"{(i+1)/totalTracks*100:.2f}% complete", end='\r', flush=True)
 
-
+# Main function
 def main():
     linksToDownload = []
     savePath = askSaveFolder()
     
+    # Prompt user for links
     while True:
         link = input("Enter an album/playlist link (or 'done' to finish): ")
 
@@ -56,15 +60,13 @@ def main():
         else:
             linksToDownload.append(link)
 
-
-
-    
+    # Set default save path if not selected
     if not savePath:
         savePath = os.getcwd()
 
     start_main_download_process(linksToDownload, savePath)
         
-
+# Run main function when script is executed
 if __name__ == "__main__":
     main()
 

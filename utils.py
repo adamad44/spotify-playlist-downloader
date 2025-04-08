@@ -7,6 +7,7 @@ import os
 import time
 import logging
 
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     handlers=[
@@ -16,6 +17,7 @@ logging.basicConfig(
 
 logger = logging.getLogger("errors")
 
+# Retrieve Spotify API credentials from environment variables
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
 client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -23,6 +25,7 @@ if not client_id or not client_secret:
     print("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables.")
     exit()
 
+# Authenticate with Spotify API
 try:
     auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
     sp = spotipy.Spotify(auth_manager=auth_manager)
@@ -32,6 +35,7 @@ except Exception as ex:
     exit()
 
 def fetch_yt_results(query, limit=5):
+    # Options for yt_dlp
     ydl_opts = {
         'quiet': True,
         'extract_flat': True,
@@ -39,7 +43,7 @@ def fetch_yt_results(query, limit=5):
     }
     
     try:
-        
+        # Search YouTube using yt_dlp
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             search_results = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
             video_ids = [entry['id'] for entry in search_results['entries']]
@@ -50,6 +54,7 @@ def fetch_yt_results(query, limit=5):
         exit()
 
 def extract_playlist_id(playlist_url):
+    # Extract playlist ID from URL
     if 'spotify.com/playlist/' in playlist_url:
         playlist_id = playlist_url.split('playlist/')[1].split('?')[0]
         return playlist_id
@@ -61,6 +66,7 @@ def extract_playlist_id(playlist_url):
 
 
 def get_type(playlist_url):
+    # Determine if the URL is a playlist or album
     if 'spotify.com/playlist/' in playlist_url:
         return "playlist"
         
@@ -71,6 +77,7 @@ def get_type(playlist_url):
         return None
 
 def get_playlist_tracks(playlist_id, type):
+    # Get tracks from a Spotify playlist or album
     tracks = []
     
     try:
@@ -116,6 +123,7 @@ def get_playlist_tracks(playlist_id, type):
         exit()
 
 def format_for_yt(type, id, raw):
+    # Format track info for YouTube search
     formatted_search_query = []
     
     if type == "playlist":        
@@ -133,6 +141,7 @@ def format_for_yt(type, id, raw):
 
 
 def download_youtube_audio(video_id, output_path=None, filename=None):
+    # Download audio from YouTube
     try:
      
         filename = "".join([c for c in filename if c.isalpha() or c.isdigit() or c == ' ' or c == '-']).rstrip()
@@ -164,6 +173,7 @@ def download_youtube_audio(video_id, output_path=None, filename=None):
 
 
 def askSaveFolder():
+    # Ask user to select a folder
     folder = filedialog.askdirectory()
     if folder:
         return folder
