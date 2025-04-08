@@ -7,7 +7,9 @@ import os
 import time
 import logging
 
-# Configure logging
+
+current_progress = 0
+
 logging.basicConfig(
     level=logging.INFO,
     handlers=[
@@ -17,7 +19,6 @@ logging.basicConfig(
 
 logger = logging.getLogger("errors")
 
-# Retrieve Spotify API credentials from environment variables
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
 client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -25,7 +26,6 @@ if not client_id or not client_secret:
     print("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables.")
     exit()
 
-# Authenticate with Spotify API
 try:
     auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
     sp = spotipy.Spotify(auth_manager=auth_manager)
@@ -34,8 +34,67 @@ except Exception as ex:
     logger.error(f"ERROR IN AUTHENTICATION, ENSURE CORRECT CREDS. ERROR: {ex}")
     exit()
 
+
+
+def get_current_progress():
+    return current_progress
+
+def start_main_download_process(linksToDownload, savePath, output_callback=None):
+    global current_progress
+    current_progress = 0
+    all_tracks = []
+    
+
+    def safe_output(msg):
+        if output_callback:
+            output_callback(msg)
+        else:
+            print(msg)
+            
+    safe_output(f"Processing {len(linksToDownload)} links")
+    
+
+    for link in linksToDownload:
+        playlist_id = extract_playlist_id(link)
+        playlist_type = get_type(link)
+        safe_output(f"Getting tracks from {playlist_type} {playlist_id}")
+        tracks = get_playlist_tracks(playlist_id, type=playlist_type)
+        
+        for track in tracks:
+            all_tracks.append({
+                'track': track,
+                'playlist_id': playlist_id,
+                'playlist_type': playlist_type
+            })
+
+    totalTracks = len(all_tracks)
+    safe_output(f"Found {totalTracks} total tracks to process")
+
+
+    for i, track_info in enumerate(all_tracks):
+        track = track_info['track']
+        
+        track_name = track['name']
+        artist_name = track['artist']
+        display_name = f"{track_name} by {artist_name}"
+        
+        filename = "".join([c for c in display_name if c.isalpha() or c.isdigit() or c == ' ' or c == '-']).rstrip()
+        file_path = os.path.join(savePath, f"{filename}.mp3")
+        
+        if os.path.exists(file_path):
+            safe_output(f"File already exists, skipping: {display_name}")
+        else:
+            try:
+                safe_output(f"Downloading: {display_name}")
+                search_results = fetch_yt_results(f"{track_name} {artist_name} audio", limit=1)
+                if search_results and len(search_results) > 0:
+                    download_youtube_audio(search_results[0], savePath, filename, safe_output)
+            except Exception as e:
+                safe_output(f"Error downloading {display_name}: {str(e)}")
+
+        current_progress = min(100, int((i+1)/totalTracks*100))
+
 def fetch_yt_results(query, limit=5):
-    # Options for yt_dlp
     ydl_opts = {
         'quiet': True,
         'extract_flat': True,
@@ -43,7 +102,7 @@ def fetch_yt_results(query, limit=5):
     }
     
     try:
-        # Search YouTube using yt_dlp
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             search_results = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
             video_ids = [entry['id'] for entry in search_results['entries']]
@@ -54,7 +113,6 @@ def fetch_yt_results(query, limit=5):
         exit()
 
 def extract_playlist_id(playlist_url):
-    # Extract playlist ID from URL
     if 'spotify.com/playlist/' in playlist_url:
         playlist_id = playlist_url.split('playlist/')[1].split('?')[0]
         return playlist_id
@@ -66,7 +124,6 @@ def extract_playlist_id(playlist_url):
 
 
 def get_type(playlist_url):
-    # Determine if the URL is a playlist or album
     if 'spotify.com/playlist/' in playlist_url:
         return "playlist"
         
@@ -77,71 +134,66 @@ def get_type(playlist_url):
         return None
 
 def get_playlist_tracks(playlist_id, type):
-    # Get tracks from a Spotify playlist or album
     tracks = []
     
     try:
         if type == "playlist":
-            
             results = sp.playlist_items(playlist_id, limit=100)
-            
-
-            for item in results['items']:
-                if item['track']:
-                    name = item['track']['name']
-                    artist = [artist['name'] for artist in item['track']['artists']]
-                    tracks.append({'name': name, 'artist': ', '.join(artist)})
-            
-            while results['next']:
-                results = sp.next(results)
+            print(f"results: {results}")
+            if results != None:
                 for item in results['items']:
+                  
                     if item['track']:
                         name = item['track']['name']
                         artist = [artist['name'] for artist in item['track']['artists']]
                         tracks.append({'name': name, 'artist': ', '.join(artist)})
+                
+                while results['next']:
+                    
+                    results = sp.next(results)
+                    for item in results['items']:
+                        if item['track']:
+                            name = item['track']['name']
+                            artist = [artist['name'] for artist in item['track']['artists']]
+                            tracks.append({'name': name, 'artist': ', '.join(artist)})
+            else:
+                print(f"no tracks in playlist {playlist_id}")
+                logger.error("no results found")
+                return []
 
         elif type == "album":
 
             results = sp.album_tracks(playlist_id, limit=50)
-        
-            for item in results['items']:
-                name = item['name']
-                artist = [artist['name'] for artist in item['artists']]
-                tracks.append({'name': name, 'artist': ', '.join(artist)})
-    
-            while results['next']:
-                results = sp.next(results)
+            if results != None:
                 for item in results['items']:
                     name = item['name']
                     artist = [artist['name'] for artist in item['artists']]
                     tracks.append({'name': name, 'artist': ', '.join(artist)})
         
+                while results['next']:
+                    results = sp.next(results)
+                    for item in results['items']:
+                        name = item['name']
+                        artist = [artist['name'] for artist in item['artists']]
+                        tracks.append({'name': name, 'artist': ', '.join(artist)})
+            else:
+                print(f"no tracks in album {playlist_id}")
+                logger.error("no results found")
+                return []
         return tracks
     except Exception as ex:
+        
+
         print("there was an error while fetching playlist tracks from spotify API. check error log")
         logger.error(f"error in fetching tracks: {ex}")
-        exit()
+        return []  # Add this explicit return
 
 def format_for_yt(type, id, raw):
-    # Format track info for YouTube search
     formatted_search_query = []
-    
-    if type == "playlist":        
-        for i in get_playlist_tracks(id, type):
-            formatted_search_query.append(f"{i['name']} by {i['artist']}")
+    tracks = get_playlist_tracks(id, type)
+    return [f"{track['name']} by {track['artist']}" for track in tracks]
 
-        return formatted_search_query
-
-
-    elif type == "album":
-        for i in get_playlist_tracks(id, type):
-            formatted_search_query.append(f"{i['name']} by {i['artist']}")
-
-        return formatted_search_query
-
-
-def download_youtube_audio(video_id, output_path=None, filename=None):
-    # Download audio from YouTube
+def download_youtube_audio(video_id, output_path=None, filename=None, output_callback=None):
     try:
      
         filename = "".join([c for c in filename if c.isalpha() or c.isdigit() or c == ' ' or c == '-']).rstrip()
@@ -162,6 +214,11 @@ def download_youtube_audio(video_id, output_path=None, filename=None):
             filename = yt.title
         
         audio_file = audio_stream.download(output_path=output_path, filename=f"{filename}.mp3")
+        
+        if output_callback:
+            output_callback(f"Downloaded: {filename}")
+        else:
+            print(f"Downloaded: {filename}")  
         return audio_file
     
     except KeyboardInterrupt:
@@ -173,7 +230,6 @@ def download_youtube_audio(video_id, output_path=None, filename=None):
 
 
 def askSaveFolder():
-    # Ask user to select a folder
     folder = filedialog.askdirectory()
     if folder:
         return folder
