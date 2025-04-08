@@ -6,6 +6,8 @@ from tkinter import filedialog
 import os
 import time
 import logging
+from pydub import AudioSegment
+import subprocess
 
 
 current_progress = 0
@@ -79,7 +81,7 @@ def start_main_download_process(linksToDownload, savePath, output_callback=None)
         display_name = f"{track_name} by {artist_name}"
         
         filename = "".join([c for c in display_name if c.isalpha() or c.isdigit() or c == ' ' or c == '-']).rstrip()
-        file_path = os.path.join(savePath, f"{filename}.mp3")
+        file_path = os.path.join(savePath, f"{filename}")
         
         if os.path.exists(file_path):
             safe_output(f"File already exists, skipping: {display_name}")
@@ -139,7 +141,7 @@ def get_playlist_tracks(playlist_id, type):
     try:
         if type == "playlist":
             results = sp.playlist_items(playlist_id, limit=100)
-            print(f"results: {results}")
+            
             if results != None:
                 for item in results['items']:
                   
@@ -186,7 +188,7 @@ def get_playlist_tracks(playlist_id, type):
 
         print("there was an error while fetching playlist tracks from spotify API. check error log")
         logger.error(f"error in fetching tracks: {ex}")
-        return []  # Add this explicit return
+        return []  
 
 def format_for_yt(type, id, raw):
     formatted_search_query = []
@@ -195,39 +197,48 @@ def format_for_yt(type, id, raw):
 
 def download_youtube_audio(video_id, output_path=None, filename=None, output_callback=None):
     try:
-     
         filename = "".join([c for c in filename if c.isalpha() or c.isdigit() or c == ' ' or c == '-']).rstrip()
         
         if output_path is None:
             output_path = os.getcwd()
-            
         
-        file_path = os.path.join(output_path, f"{filename}.mp3")
+        file_path = os.path.join(output_path, f"{filename}")
         if os.path.exists(file_path):
+            if output_callback:
+                output_callback(f"File already exists: {file_path}")
             return None
-            
+        
         url = f"https://www.youtube.com/watch?v={video_id}"
-        yt = YouTube(url)
-        audio_stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
         
-        if filename is None:
-            filename = yt.title
+       
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': file_path,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'quiet': True,
+            'no_warnings': True,
+        }
         
-        audio_file = audio_stream.download(output_path=output_path, filename=f"{filename}.mp3")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
         
         if output_callback:
-            output_callback(f"Downloaded: {filename}")
+            output_callback(f"Downloaded and saved as MP3: {file_path}")
         else:
-            print(f"Downloaded: {filename}")  
-        return audio_file
+            print(f"Downloaded and saved as MP3: {file_path}")
+        
+        return file_path
     
     except KeyboardInterrupt:
-        print("keyboard interrupt detected, exiting")
+        print("Keyboard interrupt detected, exiting")
         exit()
     except Exception as ex:
-        print(f"Error downloading audio. check log.")
-        logger.error(f"error downloading: {ex}")
-
+        print(f"Error downloading audio. Check log.")
+        logger.error(f"Error downloading: {ex}")
 
 def askSaveFolder():
     folder = filedialog.askdirectory()
