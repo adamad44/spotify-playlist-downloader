@@ -103,12 +103,6 @@ playlist_entries.pack(fill=BOTH, expand=True, padx=2, pady=2)
 options_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
 options_frame.pack(fill=X, pady=10)
 
-verbose = tk.BooleanVar()
-verbose.set(False)
-verbose_check = tk.Checkbutton(options_frame, text="Verbose output", variable=verbose, bg=MAIN_BG_COLOR, fg=MAIN_FG_COLOR, font=("Helvetica", 11),activebackground=MAIN_BG_COLOR, selectcolor=MAIN_BG_COLOR)
-verbose_check.pack(side=LEFT, padx=10)
-
-
 folder_frame = tk.Frame(main_frame, bg=MAIN_BG_COLOR)
 folder_frame.pack(fill=X, pady=10)
 
