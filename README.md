@@ -12,6 +12,8 @@ This program allows you to download tracks from Spotify playlists and albums by 
 - Automatic YouTube search and download
 - Progress tracking
 - Skips already downloaded tracks
+- User-friendly GUI interface
+- Batch download support
 
 ## Installation
 
@@ -23,9 +25,21 @@ This program allows you to download tracks from Spotify playlists and albums by 
 
 ## Usage
 
+### GUI Mode (Recommended)
 Run the program:
 ```
 python main.py
+```
+
+The GUI interface will allow you to:
+1. Enter Spotify playlist or album URLs
+2. Select a folder to save the downloaded tracks
+3. Monitor download progress in real-time
+4. Manage multiple download tasks
+
+### Command Line Mode
+```
+python main.py --no-gui
 ```
 
 Follow the prompts to:
