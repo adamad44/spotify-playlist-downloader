@@ -217,7 +217,7 @@ def download_youtube_audio(video_id, output_path=None, filename=None, output_cal
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
-                'preferredquality': '192',
+                'preferredquality': '320',
             }],
             'quiet': True,
             'no_warnings': True,
