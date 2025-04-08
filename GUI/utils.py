@@ -180,20 +180,8 @@ def get_playlist_tracks(playlist_id, type):
 
 def format_for_yt(type, id, raw):
     formatted_search_query = []
-    
-    if type == "playlist":        
-        for i in get_playlist_tracks(id, type):
-            formatted_search_query.append(f"{i['name']} by {i['artist']}")
-
-        return formatted_search_query
-
-
-    elif type == "album":
-        for i in get_playlist_tracks(id, type):
-            formatted_search_query.append(f"{i['name']} by {i['artist']}")
-
-        return formatted_search_query
-
+    tracks = get_playlist_tracks(id, type)
+    return [f"{track['name']} by {track['artist']}" for track in tracks]
 
 def download_youtube_audio(video_id, output_path=None, filename=None, output_callback=None):
     try:
