@@ -5,15 +5,31 @@ from pytubefix import YouTube
 from tkinter import filedialog
 import os
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    handlers=[
+        logging.FileHandler('errors.log')
+    ]
+)
+
+logger = logging.getLogger("errors")
 
 client_id = os.getenv("SPOTIFY_CLIENT_ID")
 client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 if not client_id or not client_secret:
-    raise EnvironmentError("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables.")
+    print("SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET must be set as environment variables.")
+    exit()
 
-auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
-sp = spotipy.Spotify(auth_manager=auth_manager)
+try:
+    auth_manager = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+    sp = spotipy.Spotify(auth_manager=auth_manager)
+except Exception as ex:
+    print("error in authentication, check log")
+    logger.error(f"ERROR IN AUTHENTICATION, ENSURE CORRECT CREDS. ERROR: {ex}")
+    exit()
 
 def fetch_yt_results(query, limit=5):
     ydl_opts = {
@@ -22,11 +38,16 @@ def fetch_yt_results(query, limit=5):
         'force_generic_extractor': True,
     }
     
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        search_results = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
-        video_ids = [entry['id'] for entry in search_results['entries']]
-        return video_ids
-
+    try:
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            search_results = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+            video_ids = [entry['id'] for entry in search_results['entries']]
+            return video_ids
+    except Exception as ex:
+        print("there was an error in yt_dlp search")
+        logger.error(f"ERROR IN YT_DLP SEARCH: {ex}. check error log")
+        exit()
 
 def extract_playlist_id(playlist_url):
     if 'spotify.com/playlist/' in playlist_url:
@@ -35,6 +56,8 @@ def extract_playlist_id(playlist_url):
     elif 'spotify.com/album/' in playlist_url:
         playlist_id = playlist_url.split("album/")[1].split("?")[0]
         return playlist_id
+    else:
+        return None
 
 
 def get_type(playlist_url):
@@ -44,47 +67,53 @@ def get_type(playlist_url):
     elif 'spotify.com/album/' in playlist_url:
         return "album"
 
+    else:
+        return None
 
 def get_playlist_tracks(playlist_id, type):
     tracks = []
+    
+    try:
+        if type == "playlist":
+            
+            results = sp.playlist_items(playlist_id, limit=100)
+            
 
-    if type == "playlist":
-
-        results = sp.playlist_items(playlist_id, limit=100)
-        
-
-        for item in results['items']:
-            if item['track']:
-                name = item['track']['name']
-                artist = [artist['name'] for artist in item['track']['artists']]
-                tracks.append({'name': name, 'artist': ', '.join(artist)})
-        
-        while results['next']:
-            results = sp.next(results)
             for item in results['items']:
                 if item['track']:
                     name = item['track']['name']
                     artist = [artist['name'] for artist in item['track']['artists']]
                     tracks.append({'name': name, 'artist': ', '.join(artist)})
+            
+            while results['next']:
+                results = sp.next(results)
+                for item in results['items']:
+                    if item['track']:
+                        name = item['track']['name']
+                        artist = [artist['name'] for artist in item['track']['artists']]
+                        tracks.append({'name': name, 'artist': ', '.join(artist)})
 
-    elif type == "album":
+        elif type == "album":
 
-        results = sp.album_tracks(playlist_id, limit=50)
-     
-        for item in results['items']:
-            name = item['name']
-            artist = [artist['name'] for artist in item['artists']]
-            tracks.append({'name': name, 'artist': ', '.join(artist)})
-   
-        while results['next']:
-            results = sp.next(results)
+            results = sp.album_tracks(playlist_id, limit=50)
+        
             for item in results['items']:
                 name = item['name']
                 artist = [artist['name'] for artist in item['artists']]
                 tracks.append({'name': name, 'artist': ', '.join(artist)})
     
-    return tracks
-
+            while results['next']:
+                results = sp.next(results)
+                for item in results['items']:
+                    name = item['name']
+                    artist = [artist['name'] for artist in item['artists']]
+                    tracks.append({'name': name, 'artist': ', '.join(artist)})
+        
+        return tracks
+    except Exception as ex:
+        print("there was an error while fetching playlist tracks from spotify API. check error log")
+        logger.error(f"error in fetching tracks: {ex}")
+        exit()
 
 def format_for_yt(type, id, raw):
     formatted_search_query = []
@@ -127,9 +156,11 @@ def download_youtube_audio(video_id, output_path=None, filename=None):
         return audio_file
     
     except KeyboardInterrupt:
-        raise
-    except Exception as e:
-        print(f"Error downloading audio: {str(e)}")
+        print("keyboard interrupt detected, exiting")
+        exit()
+    except Exception as ex:
+        print(f"Error downloading audio. check log.")
+        logger.error(f"error downloading: {ex}")
 
 
 def askSaveFolder():
