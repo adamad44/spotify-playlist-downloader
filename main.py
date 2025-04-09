@@ -30,7 +30,6 @@ main_frame.pack(fill=BOTH, expand=True)
 def initDownload():
     # Get URLs from text entry
     URLS = playlist_entries.get("1.0", "end-1c").splitlines()
-    print(URLS)
     # Determine save path
     if folder_path_label.cget("text") == "current directory":
         savePath = os.getcwd()
