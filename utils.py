@@ -6,7 +6,6 @@ from tkinter import filedialog
 import os
 import time
 import logging
-from pydub import AudioSegment
 import subprocess
 
 
